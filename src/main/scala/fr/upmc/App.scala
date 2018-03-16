@@ -1,4 +1,4 @@
-package upmc.fr
+package fr.upmc
 
 import org.apache.spark.SparkConf
 
