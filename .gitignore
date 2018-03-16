@@ -183,6 +183,6 @@ venv.bak/
 ### Scala ###
 *.class
 *.log
-
+loan.csv
 
 # End of https://www.gitignore.io/api/scala,maven,python,intellij
