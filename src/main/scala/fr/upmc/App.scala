@@ -1,8 +1,8 @@
 package fr.upmc
 
-import org.apache.spark.SparkConf
-import org.apache.spark.SparkContext
-import org.apache.spark.{SparkConf, SparkContext}
+
+import org.apache.spark._
+import org.apache.spark.sql.{SQLContext, SparkSession}
 
 
 /**
@@ -12,24 +12,24 @@ import org.apache.spark.{SparkConf, SparkContext}
 object App {
   def main(args: Array[String]) {
 
-    var conf = new SparkConf()
-    val sc = new SparkContext(conf)
+    val conf = new SparkConf()
+    conf.setMaster("local").setAppName("Analyse Loan Data")
 
-    val sqlContext = new org.apache.spark.sql.SQLContext(sc)
+    //val sc = new SparkContext(conf)
+
+    val sqlContext = SparkSession
+      .builder()
+      .appName("Analyse Loan Data").master("local[2]")
+      .getOrCreate()
 
     println("Hello World!")
 
 
-
-    val rdd = sc.textFile("loan.csv")
-
-    println(rdd.count)
-
     val dataf = sqlContext.read.format("csv")
       .option("header", "true")
       .option("inferSchema", "true")
-      .load("/home/osboxes/Desktop/DAR/Analyse-loan-data/loan.csv")
-    display(dataf)
-    conf.setMaster("local").setAppName("Analyse Loan Data")
+      .load("loan.csv")
+
+    dataf.select("*").limit(100).show()
   }
 }
