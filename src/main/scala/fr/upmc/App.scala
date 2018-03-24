@@ -9,6 +9,7 @@ import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.apache.spark.sql.types.IntegerType
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.SparkSession
+
 /**
   * Hello world!
   * Hello world!
@@ -41,10 +42,9 @@ object App {
       .load("loan.csv")
 
 
-
-    val cleanDF = dataf.select("*").withColumnRenamed("earliest_cr_line","earliest_credit_line")
-      .withColumnRenamed("inq_last_6mths","inquiries_last_6_months")
-      .withColumnRenamed("int_rate","interest_rate")
+    var cleanDF = dataf.select("*").withColumnRenamed("earliest_cr_line", "earliest_credit_line")
+      .withColumnRenamed("inq_last_6mths", "inquiries_last_6_months")
+      .withColumnRenamed("int_rate", "interest_rate")
       .withColumnRenamed("loan_amnt", "loan_amount")
       .withColumnRenamed("funded_amnt", "funded_amount")
       .withColumnRenamed("funded_amnt_inv", "investor_funds")
@@ -54,10 +54,38 @@ object App {
       .withColumnRenamed("mths_since_last_delinq", "months_since_last_delinquent")
       .withColumnRenamed("open_acc", "open_account")
       .withColumnRenamed("pub_rec", "public_records")
-      //.withColumnRenamed("open_acc", "open_account").limit(100).show()
-      import sqlContext.implicits._
-      val cachedData = cleanDF.select("loan_amount","annual_income").map(s => s).show()
+    //.withColumnRenamed("open_acc", "open_account").limit(100).show()
+
+    printf("5000.0".toDouble.toString)
+    val header = cleanDF.first
+    cleanDF = cleanDF.filter(l => header != l)
+    import sqlContext.implicits._
+    import sqlContext._
+    val cachedData = cleanDF.select("loan_amount", "annual_income").where("annual_income < 500000").map(_.toString) /*.map(s=> {
+        val ss = s.replaceAll("\\[","").replaceAll("\\]","").split(",");
+        Array(ss(0).toDouble, ss(1).toDouble)
+        })*/ .toDF().rdd.map(l => {
+
+      val ss = l.toString().replaceAll("\\[", "").replaceAll("\\]", "").split(",");
+
+      var a: Double = -1
+      var b: Double = -1
+      try {
+        a = ss(0).toDouble
+        b = ss(1).toDouble
+      }catch {
+        case _ => a = -1; b = -1
+      }
+      Vectors.dense(a/10000, b/10000)
+    }).filter(l=>l(0) != -1 && l(1) != -1).cache()
+
+    println(cachedData.count())
+
+    val clusters = KMeans.train(cachedData, 6, 20)
+
+    clusters.clusterCenters.foreach(println)
     //Vectors.dense(s.map(_.toString.toDouble).toArray)
+
 
   }
 }
