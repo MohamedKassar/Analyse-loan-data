@@ -11,7 +11,6 @@ import org.apache.spark.mllib.clustering.{KMeans, KMeansModel}
 import org.apache.spark.mllib.evaluation.MulticlassMetrics
 import org.apache.spark.mllib.linalg.Vectors
 import org.apache.spark.mllib.regression.LabeledPoint
-import org.bouncycastle.util.CollectionStore
 import org.apache.spark.sql.{DataFrame, Dataset, Row, SparkSession}
 import org.apache.spark.sql.types.IntegerType
 import org.apache.spark.sql.functions._
@@ -42,7 +41,6 @@ object App {
     sqlContext.sparkContext.setLogLevel("ERROR")
 
     println("Hello World!")
-
     val dataf = sqlContext.read.format("csv")
       .option("header", "true")
       .option("inferSchema", "true")
@@ -61,20 +59,23 @@ object App {
       .withColumnRenamed("delinq_2yrs", "delinquent_2_years")
       .withColumnRenamed("mths_since_last_delinq", "months_since_last_delinquent")
       .withColumnRenamed("open_acc", "open_account")
-      .withColumnRenamed("pub_rec", "public_records").where("loan_status != 'Oct-2015'")
+      .withColumnRenamed("pub_rec", "public_records")
     //.withColumnRenamed("open_acc", "open_account").limit(100).show()
     // useless : issue_d - pymnt_plan - url - desc - addr_state
     // recheck : earliest_cr_line - mths_since_last_delin - mths_since_last_record - initial_list_status
     //println(cleanDF.select("loan_status").distinct().rdd.foreach(println))
 
+    /*
+    *dataf.withColumn("loan_status", when(col("loan_status").startsWith("Late"),"Late").otherwise(col("loan_status")))
+     */
+
     println(cleanDF.count())
-    val header = cleanDF.first
-    cleanDF = cleanDF.filter(l => header != l)
+
 
 
     //recupération des données des variables textuelles
 
-    def normalize(s: String) = if(s == null) "" else s.replaceAll(" ", "").toLowerCase
+    def normalize(s: String) = if (s == null) "" else s.replaceAll(" ", "").toLowerCase
 
     //    import  scala.collection.JavaConversions._
     def fillList(column: String): List[String] = {
@@ -82,14 +83,7 @@ object App {
         .collect().toList
     }
 
-    var loanStatus = fillList(("loan_status"))
-
-    loanStatus = loanStatus.filter(!_.equals(normalize("Late (31-120 days)")))
-    loanStatus = loanStatus.filter(!_.equals(normalize("Late (16-30 days)")))
-    loanStatus = loanStatus.filter(!_.equals(normalize("Oct-2015")))
-    loanStatus = "late" :: loanStatus
-
-
+    val loanStatus = fillList(("loan_status"))
     val homeOwnerships = fillList(("home_ownership"))
     val grades = fillList(("grade"))
     val titles = fillList(("title"))
@@ -103,7 +97,7 @@ object App {
     val cachedData = cleanDF.select("loan_status", "dti", "delinquent_2_years", "inquiries_last_6_months",
       "zip_code", "home_ownership", "grade", "installment", "term", "loan_amount", "funded_amount",
       "investor_funds", "sub_grade", "emp_title", "emp_length", "annual_income", "purpose", "title",
-      "open_account", "public_records", "revol_bal", "revol_util", "total_acc") /*.where("dti < 500000")*/ .map(_.toString)
+      "open_account", "public_records", "revol_bal", "revol_util", "total_acc")
       .toDF().rdd.map(l => {
       val ss = l.toString().replaceAll("\\[", "").replaceAll("\\]", "").split(",");
 
@@ -141,26 +135,27 @@ object App {
       }
     }).filter(l => l != null).cache()
     println("end cleanning")
-
+/*
     println("saving in a file")
-    try{
-      cachedData.map{case LabeledPoint(label, vector) =>
-        var line : String = label.toString
+    try {
+      cachedData.map { case LabeledPoint(label, vector) =>
+        var line: String = label.toString
 
-        for(x <- vector.toArray){
+        for (x <- vector.toArray) {
           line = line + "," + x.toString
         }
         line
       }.saveAsTextFile("path");
-    }catch {
+    } catch {
       case _ => println("saving error")
     }
 
     println("saving end")
-
+*/
     println(cachedData.count())
 
-
+    //    val cachedData = readData(sqlContext)
+    println(cachedData.count())
     //cachedData.saveAsTextFile()
     // split du data set en données d'apprentissage et données de tests
     val splitedData = cachedData.randomSplit(Array(0.70, 0.30))
@@ -179,21 +174,21 @@ object App {
     println(evaluation.recall)
     println(evaluation.precision)
     println(evaluation.fMeasure)
-/*
-    869595
-    0.0  185.0   0.0  0.0  1.0   0.0   0.0  3918.0    0.0
-    0.0  9867.0  0.0  0.0  36.0  10.0  0.0  49802.0   14.0
-    0.0  20.0    0.0  0.0  0.0   1.0   0.0  363.0     0.0
-    0.0  84.0    0.0  0.0  0.0   0.0   0.0  1744.0    0.0
-    0.0  307.0   0.0  0.0  82.0  0.0   0.0  120.0     51.0
-    0.0  1799.0  0.0  0.0  18.0  15.0  0.0  11337.0   7.0
-    0.0  50.0    0.0  0.0  0.0   0.0   0.0  2428.0    1.0
-    0.0  5545.0  0.0  0.0  41.0  23.0  0.0  172114.0  2.0
-    0.0  95.0    0.0  0.0  33.0  1.0   0.0  36.0      31.0
-    0.6999319704359658
-    0.6999319704359658
-    0.6999319704359658
-*/
+    /*
+        869595
+        0.0  185.0   0.0  0.0  1.0   0.0   0.0  3918.0    0.0
+        0.0  9867.0  0.0  0.0  36.0  10.0  0.0  49802.0   14.0
+        0.0  20.0    0.0  0.0  0.0   1.0   0.0  363.0     0.0
+        0.0  84.0    0.0  0.0  0.0   0.0   0.0  1744.0    0.0
+        0.0  307.0   0.0  0.0  82.0  0.0   0.0  120.0     51.0
+        0.0  1799.0  0.0  0.0  18.0  15.0  0.0  11337.0   7.0
+        0.0  50.0    0.0  0.0  0.0   0.0   0.0  2428.0    1.0
+        0.0  5545.0  0.0  0.0  41.0  23.0  0.0  172114.0  2.0
+        0.0  95.0    0.0  0.0  33.0  1.0   0.0  36.0      31.0
+        0.6999319704359658
+        0.6999319704359658
+        0.6999319704359658
+    */
 
     val fw = new FileWriter("test.txt", true)
     /*
@@ -212,4 +207,7 @@ object App {
     fw.close()
 
   }
+
+  def readData(sqlContext: SparkSession) = sqlContext.sparkContext.textFile("path", 1).map(_.split(","))
+    .map(line => LabeledPoint(line(0).toDouble, Vectors.dense(line.tail.map(_.toDouble))))
 }
