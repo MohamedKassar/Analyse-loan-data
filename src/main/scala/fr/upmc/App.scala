@@ -60,6 +60,7 @@ object App {
       .withColumnRenamed("mths_since_last_delinq", "months_since_last_delinquent")
       .withColumnRenamed("open_acc", "open_account")
       .withColumnRenamed("pub_rec", "public_records")
+    
     //.withColumnRenamed("open_acc", "open_account").limit(100).show()
     // useless : issue_d - pymnt_plan - url - desc - addr_state
     // recheck : earliest_cr_line - mths_since_last_delin - mths_since_last_record - initial_list_status
