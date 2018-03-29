@@ -127,3 +127,16 @@ data.select("loan_status").distinct.show
     println(evaluation.precision)
     println(evaluation.fMeasure)
 
+
+import org.apache.spark.mllib.tree.DecisionTree
+import org.apache.spark.mllib.tree.model.DecisionTreeModel
+
+val model: DecisionTreeModel = DecisionTree.trainClassifier(trainingData, numClasses = loanStatus.length, categoricalFeaturesInfo = Map[Int, Int](), impurity = "gini", maxDepth = 5, maxBins = 32)
+
+
+
+data =  data.withColumn("loan_status", when(col("loan_status").startsWith("Default"),"Late").otherwise(col("loan_status")))
+data =  data.withColumn("loan_status", when(col("loan_status").startsWith("I"),"Late").otherwise(col("loan_status")))
+data.repartition(1).write.format("com.databricks.spark.csv").option("header", "true").save("loan_clean_3Status.csv")
+data =  data.withColumn("loan_status", when(col("loan_status").startsWith("Cha"),"Late").otherwise(col("loan_status")))
+data.repartition(1).write.format("com.databricks.spark.csv").option("header", "true").save("loan_clean_2Status.csv")
