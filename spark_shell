@@ -144,3 +144,44 @@ data =  data.withColumn("loan_status", when(col("loan_status").startsWith("I"),"
 data.repartition(1).write.format("com.databricks.spark.csv").option("header", "true").save("loan_clean_3Status.csv")
 data =  data.withColumn("loan_status", when(col("loan_status").startsWith("Cha"),"Late").otherwise(col("loan_status")))
 data.repartition(1).write.format("com.databricks.spark.csv").option("header", "true").save("loan_clean_2Status.csv")
+
+
+
+
+
+    def normalizeData(df: DataFrame) = df.select("loan_status", "dti", "zip_code", "home_ownership", "purpose")
+      .toDF().rdd.filter(!_.toSeq.contains(null)).map(l => {
+      try {
+        val ss = l.toString().replaceAll("\\[", "").replaceAll("\\]", "").split(",");
+        var i = -1
+
+        def I = {
+          i = i + 1;
+          i
+        }
+
+        def convertS(s: String, l: List[String]) = {
+          l.indexOf(normalize(s)) + 1
+        }
+
+        def convertLabel(s: String, l: List[String]) = {
+          l.indexOf(normalize(s))
+        }
+
+        def convertD(s: String) = {
+          s.toDouble
+        }
+
+        LabeledPoint(convertLabel(ss(I), loanStatus), Vectors.dense(
+          convertD(ss(I)), convertD(ss(I).substring(0, 3)), convertS(ss(I), homeOwnerships), convertS(ss(I), purposes)
+          
+        ))
+      } catch {
+        case _ => null
+      }
+    }).filter(_ != null).cache()
+    val categoricalFeaturesInfo = Map(2 -> (homeOwnerships.length + 1))
+
+
+
+

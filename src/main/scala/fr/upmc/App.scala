@@ -4,7 +4,7 @@ import org.apache.spark.mllib.classification.LogisticRegressionWithLBFGS
 import org.apache.spark.mllib.evaluation.MulticlassMetrics
 import org.apache.spark.mllib.linalg.Vectors
 import org.apache.spark.mllib.regression.LabeledPoint
-import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.apache.spark.sql.functions._
 import org.apache.spark.mllib.tree.DecisionTree
 import org.apache.spark.mllib.tree.model.DecisionTreeModel
@@ -44,9 +44,10 @@ object App {
 
 
     println("HI !")
+    println("data count : " + data.count())
     println("filter useless lines")
 
-    println("data count : " + data.count())
+    var currentData = data.filter(col("loan_status").equalTo("Current"))
 
     data = data.filter(!col("loan_status").equalTo("Oct-2015"))
     data = data.filter(!col("loan_status").equalTo("Current"))
@@ -63,8 +64,7 @@ object App {
 
     data.groupBy("loan_status").count.show
 
-
-    data = data.select("*").withColumnRenamed("earliest_cr_line", "earliest_credit_line")
+    def renameColumns(df: DataFrame) = df.select("*").withColumnRenamed("earliest_cr_line", "earliest_credit_line")
       .withColumnRenamed("inq_last_6mths", "inquiries_last_6_months")
       .withColumnRenamed("int_rate", "interest_rate")
       .withColumnRenamed("loan_amnt", "loan_amount")
@@ -76,6 +76,9 @@ object App {
       .withColumnRenamed("mths_since_last_delinq", "months_since_last_delinquent")
       .withColumnRenamed("open_acc", "open_account")
       .withColumnRenamed("pub_rec", "public_records")
+
+    data = renameColumns(data)
+    currentData = renameColumns(currentData)
 
 
     //recupération des données des variables textuelles
@@ -99,7 +102,8 @@ object App {
 
     println("begin cleaning")
 
-    val cachedData = data.select("loan_status", "dti", "delinquent_2_years", "inquiries_last_6_months",
+
+    def normalizeData(df: DataFrame) = df.select("loan_status", "dti", "delinquent_2_years", "inquiries_last_6_months",
       "zip_code", "home_ownership", "grade", "installment", "term", "loan_amount", "funded_amount",
       "investor_funds", "sub_grade", /*"emp_title",*/ "emp_length", "annual_income", "purpose", /*"title",*/
       "open_account", "public_records", "revol_bal", "revol_util", "total_acc")
@@ -135,6 +139,9 @@ object App {
         case _ => null
       }
     }).filter(_ != null).cache()
+
+    val cachedData = normalizeData(data)
+    val cachedCurrentData = normalizeData(currentData)
 
     println("end cleaning\ndata count : " + cachedData.count())
 
@@ -174,5 +181,15 @@ object App {
     evaluation = new MulticlassMetrics(predictVsReal)
     println("Accuracy = " + evaluation.accuracy)
 
+    println
+    println("Prediction for users with 'current' loan status using DecisionTree")
+    val predictionForCurrentUsers = cachedCurrentData.map(point => model2.predict(point.features))
+    val lateLabel = loanStatus.indexOf(normalize("Late"))
+    val koCount = predictionForCurrentUsers.filter(_ == lateLabel).count()
+    val okCount = predictionForCurrentUsers.count() - koCount
+
+    println
+    println("Number of members that will probably repay their loans = " + okCount + " / " + predictionForCurrentUsers.count())
+    println("Number of members that will probably not repay their loans with respected delay = " + koCount + " / " + predictionForCurrentUsers.count())
   }
 }
