@@ -50,6 +50,7 @@ object App {
 
     data = data.filter(!col("loan_status").equalTo("Oct-2015"))
     data = data.filter(!col("loan_status").equalTo("Current"))
+    data = data.filter(!col("loan_status").startsWith("Iss"))
 
     data = data.withColumn("loan_status", when(col("loan_status").startsWith("Late"), "Late").otherwise(col("loan_status")))
     data = data.withColumn("loan_status", when(col("loan_status").equalTo("Does not meet the credit policy. Status:Fully Paid"), "Fully Paid").otherwise(col("loan_status")))
