@@ -136,6 +136,7 @@ object App {
       }
     }).filter(l => l != null).cache()
     println("end cleanning")
+
 /*
     println("saving in a file")
     try {

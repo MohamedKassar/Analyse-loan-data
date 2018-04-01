@@ -73,7 +73,7 @@ data.select("loan_status").distinct.show
     val sub_grades = fillList(("sub_grade")) 
 
 
-   val cachedData = data.select("loan_status", "dti", "delinquent_2_years", "inquiries_last_6_months",
+   val cachedData= data.select("loan_status", "dti", "delinquent_2_years", "inquiries_last_6_months",
       "zip_code", "home_ownership", "grade", "installment", "term", "loan_amount", "funded_amount",
       "investor_funds", "sub_grade", "emp_title", "emp_length", "annual_income", "purpose", "title",
       "open_account", "public_records", "revol_bal", "revol_util", "total_acc")
@@ -90,13 +90,11 @@ data.select("loan_status").distinct.show
 
 
         def convertS(s: String, l: List[String]) = {
-          if (s == null) "unknown".hashCode else l.indexOf(normalize(s)) * 2
+          if (s == null) 0 else (l.indexOf(normalize(s))+1)
         }
 
         def convertLabel(s: String, l: List[String]) = {
-          val temp = normalize(s)
-          val i = l.indexOf(if (temp.startsWith("late")) "late" else temp)
-          if (i < 0) throw new RuntimeException("problem") else i
+          l.indexOf(normalize(s))
         }
 
         def convertD(s: String) = {
@@ -120,7 +118,7 @@ data.select("loan_status").distinct.show
     val model = new LogisticRegressionWithLBFGS().setNumClasses(loanStatus.length).run(trainingData)
     val preditVSreel = testData.map(point => (model.predict(point.features), point.label))
 
-    val evaluation = new MulticlassMetrics(preditVSreel)
+val evaluation = new MulticlassMetrics(preditVSreel)
 
     println(evaluation.confusionMatrix)
     println(evaluation.recall)
@@ -131,8 +129,14 @@ data.select("loan_status").distinct.show
 import org.apache.spark.mllib.tree.DecisionTree
 import org.apache.spark.mllib.tree.model.DecisionTreeModel
 
-val model: DecisionTreeModel = DecisionTree.trainClassifier(trainingData, numClasses = loanStatus.length, categoricalFeaturesInfo = Map[Int, Int](), impurity = "gini", maxDepth = 5, maxBins = 32)
+var categoricalFeaturesInfo = Map(4 -> (homeOwnerships.length + 1), 5 -> (grades.length + 1), 13-> (emp_lengths.length+1))
+val model: DecisionTreeModel1 = DecisionTree.trainClassifier(trainingData, numClasses = loanStatus.length, categoricalFeaturesInfo, impurity = "gini", maxDepth = 5, maxBins = (purposes.length + 1))
 
+
+
+import org.apache.spark.mllib.tree.RandomForest
+import org.apache.spark.mllib.tree.model.RandomForestModel
+val model5 = RandomForest.trainClassifier(trainingData, numClasses = loanStatus.length, categoricalFeaturesInfo,  numTrees = 5, featureSubsetStrategy = "auto", impurity = "gini", maxDepth = 5, maxBins = (purposes.length + 1))
 
 
 data =  data.withColumn("loan_status", when(col("loan_status").startsWith("Default"),"Late").otherwise(col("loan_status")))
